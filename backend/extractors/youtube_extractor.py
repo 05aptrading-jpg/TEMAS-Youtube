@@ -17,9 +17,9 @@ def get_trending_youtube_videos() -> list[dict]:
                 part="snippet",
                 type="video",
                 order="viewCount",
-                maxResults=5,
+                maxResults=10,
                 relevanceLanguage="es",
-                publishedAfter="2026-06-14T00:00:00Z",
+                publishedAfter="2026-06-01T00:00:00Z",
             )
             response = request.execute()
 
@@ -56,4 +56,4 @@ def get_trending_youtube_videos() -> list[dict]:
             continue
 
     resultados.sort(key=lambda x: x["vistas"], reverse=True)
-    return resultados[:15]
+    return resultados[:50]

@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional
+from datetime import datetime
 
 
 class RedditPost(BaseModel):
@@ -40,3 +41,22 @@ class CurationResult(BaseModel):
     metricas_clave: dict
     fuentes_consultadas: dict
     raw_data_summary: Optional[dict] = None
+
+
+class TopicItem(BaseModel):
+    id: int
+    titulo: str
+    fuente: str
+    score: int
+    curado: bool
+    por_que_funciona: Optional[str] = None
+    angulo_sugerido: Optional[str] = None
+    url: Optional[str] = None
+
+
+class BatchResult(BaseModel):
+    temas: list[TopicItem]
+    total: int
+    timestamp: str
+    proxima_renovacion: str
+    fuentes_consultadas: dict

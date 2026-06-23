@@ -32,6 +32,16 @@ YOUTUBE_SEARCH_TERMS = [
     "stoicism philosophy",
     "epictetus",
     "filosofia para la vida",
+    "sabiduria antigua",
+    "disciplina mental",
+    "resiliencia psicologia",
+    "dolor y crecimiento",
+    "mentalidad guerrero",
+    "filosofia oscura",
+    "historias fascinantes",
+    "datos curiosos historia",
+    "misterios de la humanidad",
+    "leyendas antiguas",
 ]
 
 STOIC_CONCEPTS_FOR_TRENDS = [
