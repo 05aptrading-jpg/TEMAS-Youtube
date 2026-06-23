@@ -1,9 +1,13 @@
 import asyncio
+import json
+import os
 import time
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import Optional
 
 from .extractors.reddit_extractor import get_trending_reddit_posts
 from .extractors.youtube_extractor import get_trending_youtube_videos
@@ -14,10 +18,13 @@ from .models.schemas import (
     CurationResult, TopicItem, BatchResult,
 )
 
+HISTORY_FILE = os.path.join(os.path.dirname(__file__), "historial.json")
+MAX_HISTORY = 500
+
 app = FastAPI(
     title="Curador Estoico API",
     description="Backend de curaduría de contenido estoico.",
-    version="2.0.0",
+    version="3.0.0",
 )
 
 app.add_middleware(
@@ -29,12 +36,55 @@ app.add_middleware(
 
 executor = ThreadPoolExecutor(max_workers=5)
 
-# --- Caché en memoria ---
 _cache = {
     "data": None,
     "timestamp": 0,
-    "ttl": 6 * 3600,  # 6 horas en segundos
+    "ttl": 6 * 3600,
 }
+
+_historial: list[dict] = []
+
+
+def _load_historial():
+    global _historial
+    if os.path.exists(HISTORY_FILE):
+        try:
+            with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+                _historial = json.load(f)
+        except Exception:
+            _historial = []
+    else:
+        _historial = []
+
+
+def _save_historial():
+    try:
+        with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(_historial, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
+
+def _add_to_historial(temas: list[dict]):
+    global _historial
+    existing_titles = {t["titulo"] for t in _historial}
+    for tema in temas:
+        if tema["titulo"] not in existing_titles:
+            existing_titles.add(tema["titulo"])
+            _historial.insert(0, {
+                "titulo": tema["titulo"],
+                "fuente": tema.get("fuente", "unknown"),
+                "por_que_funciona": tema.get("por_que_funciona"),
+                "angulo_sugerido": tema.get("angulo_sugerido"),
+                "url": tema.get("url"),
+                "fecha_guardado": datetime.now().isoformat(),
+            })
+    if len(_historial) > MAX_HISTORY:
+        _historial = _historial[:MAX_HISTORY]
+    _save_historial()
+
+
+_load_historial()
 
 
 async def run_in_thread(fn, *args, **kwargs):
@@ -80,7 +130,7 @@ async def _extract_all() -> ExtractedData:
 
 @app.get("/")
 def health_check():
-    return {"status": "ok", "app": "Curador Estoico API", "version": "2.0.0"}
+    return {"status": "ok", "app": "Curador Estoico API", "version": "3.0.0"}
 
 
 @app.get("/curar", response_model=dict)
@@ -190,6 +240,8 @@ async def temas():
     _cache["data"] = batch_result.model_dump()
     _cache["timestamp"] = now
 
+    _add_to_historial([t.model_dump() for t in temas_curados])
+
     return {
         "success": True,
         "cached": False,
@@ -203,3 +255,20 @@ async def temas_refresh():
     _cache["data"] = None
     _cache["timestamp"] = 0
     return await temas()
+
+
+@app.get("/historial", response_model=dict)
+def historial():
+    return {
+        "success": True,
+        "total": len(_historial),
+        "temas": _historial,
+    }
+
+
+@app.post("/historial/limpiar", response_model=dict)
+def historial_limpiar():
+    global _historial
+    _historial = []
+    _save_historial()
+    return {"success": True, "mensaje": "Historial limpiado"}
